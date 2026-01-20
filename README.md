@@ -23,3 +23,10 @@ xhost +local:docker
 
 ## Run the container 
 docker run --rm --device=/dev/video0 -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix face-ray-app
+
+## Docker run command
+
+docker pull meego1010/geo_face_track:latest
+xhost +local:docker
+docker run --rm --device=/dev/video0 -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix meego1010/geo_face_track:latest
+
