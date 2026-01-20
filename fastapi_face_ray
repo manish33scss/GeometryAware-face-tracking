@@ -1,0 +1,49 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Tue Jan 20 12:44:19 2026
+
+@author: manish
+"""
+
+from fastapi import FastAPI, UploadFile, File
+import cv2
+import numpy as np
+import uvicorn
+
+app = FastAPI()
+
+# Engineering Constants
+K = {'fx': 600.0, 'fy': 600.0, 'cx': 320.0, 'cy': 240.0}
+face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
+
+@app.post("/detect-ray")
+async def detect_ray(file: UploadFile = File(...)):
+    # 1. Decode Image
+    contents = await file.read()
+    nparr = np.frombuffer(contents, np.uint8)
+    frame = cv2.imdecode(nparr, cv2.IMREAD_GRAYSCALE)
+    
+    # 2. Detection
+    faces = face_cascade.detectMultiScale(frame, 1.1, 5, minSize=(60, 60))
+    
+    if len(faces) == 0:
+        return {"detected": False}
+
+    # 3. Geometry (Pick largest face)
+    x, y, w, h = max(faces, key=lambda b: b[2] * b[3])
+    u, v = x + w//2, y + h//2
+    
+    # Ray Projection: Ray = [(u-cx)/fx, (v-cy)/fy, 1.0]
+    ray = np.array([(u - K['cx'])/K['fx'], (v - K['cy'])/K['fy'], 1.0])
+    ray_unit = ray / np.linalg.norm(ray)
+
+    return {
+        "detected": True,
+        "centroid": [int(u), int(v)],
+        "ray_cam": ray_unit.tolist(),
+        "bbox": [int(x), int(y), int(w), int(h)]
+    }
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000)
